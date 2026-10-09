@@ -1,11 +1,46 @@
 const pool = require("../db");
 
 // get all products
-const getAllProducts = async () => {
-    const result = await pool.query("SELECT * FROM products");
 
-    return result.rows;
+
+// get all products with search, sorting, and pagination
+const getAllProducts = async (
+  page = 1,
+  limit = 10,
+  search = "",
+  sortBy = "id",
+  order = "asc"
+) => {
+  const offset = (page - 1) * limit;
+
+  // Allow only approved column names
+  const allowedColumns = [
+    "id",
+    "product_name",
+    "price",
+    "brand",
+  ];
+
+  const column = allowedColumns.includes(sortBy)
+    ? sortBy
+    : "id";
+
+  // Allow only ASC or DESC
+  const direction =
+    order.toLowerCase() === "desc" ? "DESC" : "ASC";
+
+  const result = await pool.query(
+    `SELECT *
+     FROM products
+     WHERE product_name ILIKE $1
+     ORDER BY ${column} ${direction}
+     LIMIT $2 OFFSET $3`,
+    [`%${search}%`, limit, offset]
+  );
+
+  return result.rows;
 };
+
 
 
 // get product by id
