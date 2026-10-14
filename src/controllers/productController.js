@@ -10,27 +10,38 @@ const getProducts = async (req, res, next) => {
     const search = (req.query.search || "").trim();
     const sortBy = req.query.sortBy || "id";
     const order = req.query.order || "asc";
+    const brand = (req.query.brand || "").trim();
+
+    const minPrice =
+      req.query.minPrice === undefined
+        ? undefined
+        : Number(req.query.minPrice);
+
+    const maxPrice =
+      req.query.maxPrice === undefined
+        ? undefined
+        : Number(req.query.maxPrice);
 
     const allowedSortColumns = [
-  "id",
-  "product_name",
-  "price",
-  "brand",
-];
+      "id",
+      "product_name",
+      "price",
+      "brand",
+    ];
 
-if (!allowedSortColumns.includes(sortBy)) {
-  return res.status(400).json({
-    success: false,
-    message: `Invalid sortBy value. Allowed values: ${allowedSortColumns.join(", ")}`,
-  });
-}
+    if (!allowedSortColumns.includes(sortBy)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid sortBy value. Allowed values: ${allowedSortColumns.join(", ")}`,
+      });
+    }
 
-if (!["asc", "desc"].includes(order.toLowerCase())) {
-  return res.status(400).json({
-    success: false,
-    message: "Invalid order value. Allowed values: asc, desc",
-  });
-}
+    if (!["asc", "desc"].includes(order.toLowerCase())) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid order value. Allowed values: asc, desc",
+      });
+    }
     const pageParam = req.query.page;
     const limitParam = req.query.limit;
 
@@ -54,10 +65,32 @@ if (!["asc", "desc"].includes(order.toLowerCase())) {
       });
     }
 
+    if (
+      (minPrice !== undefined &&
+        (!Number.isSafeInteger(minPrice) || minPrice < 0)) ||
+      (maxPrice !== undefined &&
+        (!Number.isSafeInteger(maxPrice) || maxPrice < 0))
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Prices must be non-negative whole numbers",
+      });
+    }
 
-    
+    if (
+      minPrice !== undefined &&
+      maxPrice !== undefined &&
+      minPrice > maxPrice
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "minPrice cannot be greater than maxPrice",
+      });
+    }
 
-    const products = await getAllProducts(page, limit, search, sortBy, order);
+
+
+    const products = await getAllProducts(page, limit, search, sortBy, order, brand, minPrice, maxPrice);
 
     return successResponse(
       res,

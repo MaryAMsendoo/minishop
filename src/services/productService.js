@@ -3,13 +3,16 @@ const pool = require("../db");
 // get all products
 
 
-// get all products with search, sorting, and pagination
+// get all products with search, filtering, sorting, and pagination
 const getAllProducts = async (
   page = 1,
   limit = 10,
   search = "",
   sortBy = "id",
-  order = "asc"
+  order = "asc",
+  brand = "",
+  minPrice,
+  maxPrice
 ) => {
   const offset = (page - 1) * limit;
 
@@ -29,17 +32,46 @@ const getAllProducts = async (
   const direction =
     order.toLowerCase() === "desc" ? "DESC" : "ASC";
 
-  const result = await pool.query(
-    `SELECT *
-     FROM products
-     WHERE product_name ILIKE $1
-     ORDER BY ${column} ${direction}
-     LIMIT $2 OFFSET $3`,
-    [`%${search}%`, limit, offset]
-  );
+  // Build filter conditions safely
+  const conditions = ["product_name ILIKE $1"];
+  const values = [`%${search}%`];
+
+  if (brand) {
+    values.push(brand);
+    conditions.push(`brand ILIKE $${values.length}`);
+  }
+
+  if (minPrice !== undefined) {
+    values.push(minPrice);
+    conditions.push(`price >= $${values.length}`);
+  }
+
+  if (maxPrice !== undefined) {
+    values.push(maxPrice);
+    conditions.push(`price <= $${values.length}`);
+  }
+
+  // Add pagination parameters
+  values.push(limit);
+  const limitPosition = values.length;
+
+  values.push(offset);
+  const offsetPosition = values.length;
+
+  const query = `
+    SELECT *
+    FROM products
+    WHERE ${conditions.join(" AND ")}
+    ORDER BY ${column} ${direction}
+    LIMIT $${limitPosition}
+    OFFSET $${offsetPosition}
+  `;
+
+  const result = await pool.query(query, values);
 
   return result.rows;
 };
+
 
 
 

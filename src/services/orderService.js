@@ -12,4 +12,25 @@ const getOrderForUser = async (orderId, userId) => {
   return result.rows[0] || null;
 };
 
-module.exports = { getOrderForUser };
+
+const getOrderHistory = async (userId) => {
+  const result = await pool.query(
+    `SELECT
+       o.id,
+       o.order_date,
+       COALESCE(SUM(p.price * oi.quantity), 0) AS total_amount
+     FROM orders o
+     INNER JOIN orderItems oi
+       ON o.id = oi.order_id
+     INNER JOIN products p
+       ON oi.product_id = p.id
+     WHERE o.user_id = $1
+     GROUP BY o.id, o.order_date
+     ORDER BY o.order_date DESC`,
+    [userId]
+  );
+
+  return result.rows;
+};
+
+module.exports = { getOrderForUser, getOrderHistory };
