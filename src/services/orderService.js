@@ -1,9 +1,8 @@
-
 const pool = require("../db");
 
 const getOrderForUser = async (orderId, userId) => {
   const result = await pool.query(
-    `SELECT id, user_id, order_date
+    `SELECT id, user_id, order_date, status
      FROM orders
      WHERE id = $1 AND user_id = $2`,
     [orderId, userId]
@@ -16,6 +15,7 @@ const getOrderHistory = async (userId) => {
   const result = await pool.query(
     `SELECT
        o.id,
+       o.status,
        o.order_date,
        COALESCE(SUM(p.price * oi.quantity), 0) AS total_amount
      FROM orders o
@@ -24,7 +24,7 @@ const getOrderHistory = async (userId) => {
      INNER JOIN products p
        ON oi.product_id = p.id
      WHERE o.user_id = $1
-     GROUP BY o.id, o.order_date
+     GROUP BY o.id, o.status, o.order_date
      ORDER BY o.order_date DESC`,
     [userId]
   );
@@ -64,11 +64,11 @@ const createOrder = async (userId, items) => {
       throw error;
     }
 
-    // Create the order and obtain its ID.
+    // Create the order and obtain its ID and status.
     const orderResult = await client.query(
       `INSERT INTO orders (user_id, order_date)
        VALUES ($1, CURRENT_TIMESTAMP)
-       RETURNING id, user_id, order_date`,
+       RETURNING id, user_id, order_date, status`,
       [userId]
     );
 
@@ -106,8 +106,27 @@ const createOrder = async (userId, items) => {
   }
 };
 
+const cancelOrder = async (orderId, userId) => {
+  const result = await pool.query(
+    `UPDATE orders
+     SET status = 'cancelled'
+     WHERE id = $1
+       AND user_id = $2
+       AND status = 'pending'
+     RETURNING id, user_id, status, order_date`,
+    [orderId, userId]
+  );
+
+  if (result.rowCount === 0) {
+    return null;
+  }
+
+  return result.rows[0];
+};
+
 module.exports = {
   getOrderForUser,
   getOrderHistory,
   createOrder,
+  cancelOrder,
 };

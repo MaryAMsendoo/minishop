@@ -8,6 +8,7 @@ const {
   getMyOrder,
   getMyOrderHistory,
   createMyOrder,
+  cancelMyOrder,
 } = require("../controllers/orderController");
 
 router.post(
@@ -19,5 +20,5 @@ router.post(
 
 router.get("/:id", authenticateToken, getMyOrder);
 router.get("/", authenticateToken, getMyOrderHistory);
-
+router.patch("/:id/cancel", authenticateToken, cancelMyOrder);
 module.exports = router;
